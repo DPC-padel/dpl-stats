@@ -1,5 +1,5 @@
-// League registration analytics: turns league_events rows (from league/track.js)
-// and the registration mix into the numbers the stats page shows. Pure, no DOM.
+// League registration analytics: turns league_events rows (from the DPC site's league/track.js)
+// and the registration mix into the numbers the dashboard shows. Pure, no DOM.
 // Row: [epochSeconds, vid, sid, page, event, detail, src, device]
 
 const FIELD_LABELS = {
@@ -7,7 +7,7 @@ const FIELD_LABELS = {
   email: "Email", gender: "Gender", dob: "Date of birth", instagram: "Instagram", experience: "How long playing",
   level: "Self rating", side: "Preferred side", tournament: "Tournament result", tshirt: "T-shirt size",
 };
-// Form order (league/register/index.html): each step counts sessions that answered any of its questions.
+// Form order (league/register/index.html): a step counts sessions that answered any of its questions.
 const STEPS = [
   ["The dates", ["availability"]],
   ["Your details", ["name", "phone", "email", "gender", "dob", "instagram"]],
@@ -15,72 +15,96 @@ const STEPS = [
   ["Your kit", ["tshirt"]],
 ];
 const REGISTER_CLICKS = new Set(["hero_register", "path_play", "register_link"]);
+const IST = 19800;   // India is UTC+5:30
+
+const median = (xs) => { const a = xs.filter((x) => x != null).sort((p, q) => p - q); return a.length ? a[Math.floor(a.length / 2)] : null; };
 
 function computeStats(rows, regs, now) {
   const S = new Map();   // sid → session summary
   for (const [t, vid, sid, page, event, detail, src, device] of rows) {
     let s = S.get(sid);
-    if (!s) S.set(sid, s = { vid, src: src || "direct", device: device || "unknown", pages: new Set(), fields: [], first: t,
-      clickedRegister: false, start: 0, submit: false, success: 0, partnerStart: false, partnerSent: false });
+    if (!s) S.set(sid, s = { vid, src: src || "direct", device: device || "unknown", pages: new Set(), fields: [], first: t, last: t,
+      clicked: false, clickedRegister: false, start: 0, submit: false, invalid: false, success: 0, scroll: 0, partnerStart: false, partnerSent: false });
+    s.last = t;
     if (event === "view") s.pages.add(page);
-    if (event === "click" && REGISTER_CLICKS.has(detail)) s.clickedRegister = true;
+    if (event === "click") { s.clicked = true; if (REGISTER_CLICKS.has(detail)) s.clickedRegister = true; }
+    if (event === "scroll") s.scroll = Math.max(s.scroll, Number(detail) || 0);
     if (event === "start") { if (detail === "sponsor") s.partnerStart = true; else if (!s.start) s.start = t; }
     if (event === "field" && FIELD_LABELS[detail]) s.fields.push(detail);
     if (event === "submit" && detail === "player") s.submit = true;
+    if (event === "invalid") s.invalid = true;
     if (event === "success") { if (detail === "sponsor") s.partnerSent = true; else if (!s.success) s.success = t; }
   }
   const sessions = [...S.values()];
-  const count = (f) => sessions.filter(f).length;
+  const count = (f, list = sessions) => list.filter(f).length;
   const uniq = (list) => new Set(list.map((s) => s.vid)).size;
   const pct = (a, b) => (b ? (100 * a) / b : 0);
 
   const visitors = uniq(sessions);
+  const formSessions = sessions.filter((s) => s.pages.has("register"));
+  const formVisitors = uniq(formSessions);
   const starts = count((s) => s.start);
   const registered = count((s) => s.success);
-  const times = sessions.filter((s) => s.start && s.success > s.start).map((s) => s.success - s.start).sort((a, b) => a - b);
-  const median = times.length ? times[Math.floor(times.length / 2)] : null;
+  const leagueSessions = sessions.filter((s) => s.pages.has("league"));
 
-  const all = sessions.length;
-  const funnel = [
-    ["League page", count((s) => s.pages.has("league"))],
+  // Funnel, with how many each step lost from the one before it.
+  const steps = (list) => [
+    ["Started form", count((s) => s.start, list)],
+    ...STEPS.map(([label, names]) => [label, count((s) => s.fields.some((f) => names.includes(f)), list)]),
+    ["Pressed Register", count((s) => s.submit, list)],
+    ["Registered", count((s) => s.success, list)],
+  ];
+  const withLoss = (pairs, base) => pairs.map(([label, n], i) => {
+    const prev = i ? pairs[i - 1][1] : null;
+    return { label, n, pct: pct(n, base), lost: prev == null ? null : prev - n, lostPct: prev == null ? null : pct(prev - n, prev) };
+  });
+  const journey = withLoss([
+    ["League page", leagueSessions.length],
     ["Clicked Register", count((s) => s.clickedRegister)],
-    ["Form page", count((s) => s.pages.has("register"))],
-    ["Started form", starts],
-    ...STEPS.map(([label, names]) => [label, count((s) => s.fields.some((f) => names.includes(f)))]),
-    ["Pressed Register", count((s) => s.submit)],
-    ["Registered", registered],
-  ].map(([label, n]) => ({ label, n, pct: pct(n, all) }));
+    ["Form page", formSessions.length],
+    ...steps(sessions),
+  ], sessions.length);
+  const form = withLoss([["Form page", formSessions.length], ...steps(formSessions)], formSessions.length);
+  const leak = (f) => f.reduce((m, x) => (x.lost > 0 && x.lostPct > (m ? m.lostPct : -1) ? x : m), null);
 
-  // Where people quit: the last question answered in sessions that started but didn't register.
+  // Where people quit: last question answered (and time spent) in sessions that started but didn't register.
   const quit = {};
   sessions.filter((s) => s.start && !s.success).forEach((s) => {
     const k = s.fields.length ? FIELD_LABELS[s.fields[s.fields.length - 1]] : "Opened, answered nothing";
-    quit[k] = (quit[k] || 0) + 1;
+    (quit[k] = quit[k] || []).push(s.last - s.start);
   });
-  const quitTotal = Object.values(quit).reduce((a, b) => a + b, 0);
+  const abandoned = Object.values(quit).reduce((a, b) => a + b.length, 0);
 
   const tally = (pick) => { const o = {}; rows.forEach((r) => { const k = pick(r); if (k) o[k] = (o[k] || 0) + 1; }); return o; };
-  const blocked = tally((r) => r[4] === "invalid" && (FIELD_LABELS[r[5]] || r[5]));
-  const errors = tally((r) => r[4] === "error" && r[5]);
-  const clicks = tally((r) => r[4] === "click" && r[5]);
 
   const groupBy = (key) => {
     const g = {};
     sessions.forEach((s) => (g[s[key]] = g[s[key]] || []).push(s));
     return Object.entries(g).map(([k, list]) => {
-      const v = uniq(list), st = list.filter((s) => s.start).length, rg = list.filter((s) => s.success).length;
-      return { key: k, visitors: v, sessions: list.length, starts: st, registered: rg, conv: pct(rg, v) };
+      const v = uniq(list), fv = uniq(list.filter((s) => s.pages.has("register")));
+      const st = count((s) => s.start, list), rg = count((s) => s.success, list);
+      return { key: k, visitors: v, formVisitors: fv, starts: st, registered: rg, conv: pct(rg, fv) };
     }).sort((a, b) => b.visitors - a.visitors);
   };
 
-  // Daily, in India time.
-  const day = (t) => new Date((t + 19800) * 1000).toISOString().slice(0, 10);
-  const days = {};
-  const d = (k) => (days[k] = days[k] || { vids: new Set(), starts: 0, registered: 0 });
-  sessions.forEach((s) => { const x = d(day(s.first)); x.vids.add(s.vid); if (s.start) x.starts++; if (s.success) x.registered++; });
-  const daily = Object.keys(days).sort().map((k) => ({ day: k, visitors: days[k].vids.size, starts: days[k].starts, registered: days[k].registered }));
+  // Returning visitors, and how long from first visit to registering.
+  const byVid = {};
+  sessions.forEach((s) => (byVid[s.vid] = byVid[s.vid] || []).push(s));
+  const people = Object.values(byVid);
+  const returning = people.filter((p) => p.length > 1);
+  const toRegister = people.map((p) => { const won = p.find((s) => s.success); return won ? won.success - Math.min(...p.map((s) => s.first)) : null; });
 
-  // Who's registering (from the registrations themselves).
+  // Daily and by hour, in India time.
+  const day = (t) => new Date((t + IST) * 1000).toISOString().slice(0, 10);
+  const hour = (t) => new Date((t + IST) * 1000).getUTCHours();
+  const days = {};
+  const d = (k) => (days[k] = days[k] || { vids: new Set(), formVids: new Set(), starts: 0, registered: 0 });
+  sessions.forEach((s) => { const x = d(day(s.first)); x.vids.add(s.vid); if (s.pages.has("register")) x.formVids.add(s.vid); if (s.start) x.starts++; if (s.success) x.registered++; });
+  const daily = Object.keys(days).sort().map((k) => ({ day: k, visitors: days[k].vids.size, formVisitors: days[k].formVids.size, starts: days[k].starts, registered: days[k].registered }));
+  const hours = Array.from({ length: 24 }, (_, h) => ({ hour: h, visits: 0, registered: 0 }));
+  sessions.forEach((s) => { hours[hour(s.first)].visits++; if (s.success) hours[hour(s.success)].registered++; });
+
+  // Who's registering, from the registrations themselves.
   const mix = (k) => { const o = {}; regs.forEach((r) => { const v = r[k] || "—"; o[v] = (o[v] || 0) + 1; }); return o; };
   const ages = {};
   regs.forEach((r) => {
@@ -89,12 +113,29 @@ function computeStats(rows, regs, now) {
     const band = age == null ? "—" : age < 25 ? "Under 25" : age < 35 ? "25–34" : age < 45 ? "35–44" : "45+";
     ages[band] = (ages[band] || 0) + 1;
   });
+  const submitted = count((s) => s.submit);
+  const scrolled = (n) => count((s) => s.scroll >= n, leagueSessions);
 
   return {
-    kpi: { visitors, sessions: all, starts, registered, conversion: pct(registered, visitors), completion: pct(registered, starts),
-      medianSeconds: median, partnerStarts: count((s) => s.partnerStart), partnerSent: count((s) => s.partnerSent), totalRegs: regs.length },
-    funnel, quit: Object.entries(quit).sort((a, b) => b[1] - a[1]).map(([k, n]) => ({ label: k, n, pct: pct(n, quitTotal) })),
-    blocked, errors, clicks, sources: groupBy("src"), devices: groupBy("device"), daily,
+    kpi: {
+      visitors, formVisitors, sessions: sessions.length, starts, registered, abandoned,
+      conversion: pct(registered, visitors), formConversion: pct(registered, formVisitors), completion: pct(registered, starts),
+      bounce: pct(count((s) => !s.clicked && !s.pages.has("register"), leagueSessions), leagueSessions.length),
+      errorRate: pct(count((s) => s.submit && s.invalid), submitted),
+      returning: pct(returning.length, people.length), returningConv: pct(returning.filter((p) => p.some((s) => s.success)).length, returning.length),
+      medianSeconds: median(sessions.filter((s) => s.start && s.success > s.start).map((s) => s.success - s.start)),
+      toRegisterSeconds: median(toRegister),
+      partnerStarts: count((s) => s.partnerStart), partnerSent: count((s) => s.partnerSent), totalRegs: regs.length,
+    },
+    journey, form, journeyLeak: leak(journey.slice(1)), formLeak: leak(form),
+    quit: Object.entries(quit).sort((a, b) => b[1].length - a[1].length)
+      .map(([label, ts]) => ({ label, n: ts.length, pct: pct(ts.length, abandoned), medianSeconds: median(ts) })),
+    blocked: tally((r) => r[4] === "invalid" && (FIELD_LABELS[r[5]] || r[5])),
+    errors: tally((r) => r[4] === "error" && r[5]),
+    clicks: tally((r) => r[4] === "click" && r[5]),
+    scroll: leagueSessions.length ? [25, 50, 75, 100].map((n) => ({ label: n + "%", n: scrolled(n), pct: pct(scrolled(n), leagueSessions.length) })) : [],
+    sources: groupBy("src"), devices: groupBy("device"), daily, hours,
+    cumulative: regs.filter((r) => r.at).map((r, i) => ({ day: day(r.at), total: i + 1 })),
     who: { level: mix("level"), gender: mix("gender"), availability: mix("availability"), experience: mix("experience"), age: ages },
   };
 }

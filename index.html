@@ -49,6 +49,18 @@ table.t{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:
 .login input{min-height:48px;padding:0 14px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);font:inherit;color:var(--text)}
 .login .err{color:var(--error);font-size:14px;min-height:20px}
 @media(max-width:599px){.bar-row{grid-template-columns:96px minmax(0,1fr) 88px;font-size:14px}}
+.bar-row.f{grid-template-columns:minmax(110px,170px) minmax(0,1fr) 96px 120px}
+.lost{text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:#a4372b}
+.lost.gain{color:var(--text-3)}
+.lost.big{background:#f3dcd6;padding:2px 6px}
+.kpi .d{font-size:13px;margin-top:2px}.up{color:#2a6649}.down{color:#a4372b}
+.kgroup{font:600 12px/1.3 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);margin:22px 0 10px}
+.tabs{display:inline-flex;gap:6px;margin-bottom:18px}
+.tabs button{min-height:34px;padding:0 12px;border-radius:var(--r);font-size:14px;box-shadow:inset 0 0 0 1px var(--line);color:var(--text-2)}
+.tabs button[aria-pressed=true]{background:var(--gold);color:#f8f4ea;box-shadow:none}
+.target{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--text-2);margin-bottom:14px}
+.target input{width:90px;min-height:36px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);font:inherit;color:var(--text)}
+@media(max-width:599px){.bar-row.f{grid-template-columns:90px minmax(0,1fr) 72px 84px;font-size:13px}}
 </style>
 </head>
 <body>
@@ -76,120 +88,185 @@ table.t{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:
       <button data-days="1">Today</button><button data-days="7" aria-pressed="true">7 days</button><button data-days="30">30 days</button><button data-days="0">All</button>
     </div>
   </div>
-  <div class="kpis" id="kpis"></div>
+  <p class="kgroup">Traffic</p><div class="kpis" id="k-traffic"></div>
+  <p class="kgroup">The form</p><div class="kpis" id="k-form"></div>
+  <p class="kgroup">Behaviour</p><div class="kpis" id="k-behaviour"></div>
 
-  <section><h2>Funnel</h2><p class="cap">Sessions reaching each step, as a share of all sessions.</p><div class="bars" id="funnel"></div></section>
+  <section><h2>Funnel and drop-off</h2><p class="cap" id="funnelCap"></p>
+    <div class="tabs" role="group" aria-label="Funnel view"><button data-view="form" aria-pressed="true">Form only</button><button data-view="journey">Full journey</button></div>
+    <div class="bars" id="funnel"></div></section>
 
   <section class="grid2">
-    <div><h2>Where people quit</h2><p class="cap">Last question answered by people who started but didn't register.</p><div class="bars" id="quit"></div></div>
+    <div><h2>Where people quit</h2><p class="cap">Last question answered by people who started but didn't register, with median time spent.</p><div class="bars" id="quit"></div></div>
     <div><h2>What blocks Register</h2><p class="cap">Required question left empty when Register was pressed, and save errors.</p><div class="bars" id="blocked"></div></div>
   </section>
 
-  <section><h2>Every day</h2><p class="cap">Visitors, form starts and registrations, India time.</p><div class="chart"><canvas id="daily" role="img" aria-label="Daily visitors, starts and registrations"></canvas></div></section>
+  <section><h2>Every day</h2><p class="cap">Visitors, form visitors, form starts and registrations, India time.</p><div class="chart"><canvas id="daily" role="img" aria-label="Daily visitors, form visitors, starts and registrations"></canvas></div></section>
 
-  <section><h2>Sources</h2><p class="cap">Tag shared links with ?utm_source=instagram (or whatsapp, etc.) to see them here.</p><div id="sources"></div></section>
+  <section class="grid2">
+    <div><h2>Toward the target</h2><p class="cap">All registrations so far, over time.</p>
+      <label class="target">Target <input id="target" type="number" min="1" step="1" inputmode="numeric"></label>
+      <div class="chart"><canvas id="cum" role="img" aria-label="Cumulative registrations against the target"></canvas></div></div>
+    <div><h2>Best hours</h2><p class="cap">Visits and registrations by hour, India time. Post when people show up.</p><div class="chart"><canvas id="hours" role="img" aria-label="Visits and registrations by hour of day"></canvas></div></div>
+  </section>
+
+  <section><h2>Sources</h2><p class="cap">Tag shared links with ?utm_source=instagram (or whatsapp, etc.) to see them here. Conversion is form visitors to registered.</p><div id="sources"></div></section>
 
   <section class="grid2">
     <div><h2>Device</h2><p class="cap">&nbsp;</p><div id="devices"></div></div>
-    <div><h2>Button clicks</h2><p class="cap">League page and form.</p><div class="bars" id="clicks"></div></div>
+    <div><h2>League page scroll</h2><p class="cap">How far down the League page visitors got.</p><div class="bars" id="scroll"></div></div>
   </section>
+
+  <section><h2>Button clicks</h2><p class="cap">League page and form.</p><div class="bars" id="clicks"></div></section>
 
   <section><h2>Who's registering</h2><p class="cap">From the saved registrations in this range.</p><div class="who" id="who"></div></section>
   <p class="cap" id="foot" style="margin-top:24px"></p>
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="stats.js?v=1"></script>
+<script src="stats.js?v=3"></script>
 <script>
 const SB = { url: "https://zruqzybdpniofxbcwuat.supabase.co", key: "sb_publishable_O5kl7By_s23gMXNULck-yw_cksU-9Oy" };
-const PW_KEY = "dpcAdminPw";   // same password and tab storage as Games admin
+const PW_KEY = "dpcAdminPw", TARGET_KEY = "dplTarget";
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = (n) => Math.round(n).toLocaleString("en-IN");
 const pc = (n) => (n >= 10 || n === 0 ? Math.round(n) : n.toFixed(1)) + "%";
-let days = 7, chart;
+const dur = (s) => s == null ? "—" : s < 3600 ? `${Math.floor(s / 60)}m ${s % 60}s` : s < 86400 ? `${(s / 3600).toFixed(1)}h` : `${(s / 86400).toFixed(1)} days`;
+const ls = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
+const INK = "#1f5136", SAGE = "#8a9a6b", RUST = "#a4372b", MUTED = "#6d7c70", GRID = "#ddd8c8";
+let days = 7, view = "form", all = null, charts = {};
 
+// Everything once per sign-in; ranges are cut here, so switching is instant.
+// ponytail: loads every event; ask Supabase for the range only once there are tens of thousands.
 async function load(pw) {
-  const since = days ? new Date(days === 1 ? new Date().setHours(0, 0, 0, 0) : Date.now() - days * 86400000) : new Date("2026-01-01");
   const res = await fetch(`${SB.url}/rest/v1/rpc/league_stats`, { method: "POST",
     headers: { apikey: SB.key, Authorization: `Bearer ${SB.key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ pw, since: since.toISOString() }) });
-  if (res.status === 401 || res.status === 403) throw Object.assign(new Error("wrong password"), { auth: true });
-  const body = await res.json();
-  if (!res.ok) throw Object.assign(new Error(body.message || "failed"), { auth: /unauthorized/i.test(body.message || "") });
+    body: JSON.stringify({ pw, since: "2026-01-01T00:00:00Z" }) });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(body.message || "failed"), { auth: res.status === 401 || res.status === 403 || /unauthorized/i.test(body.message || "") });
   return body;
 }
 
 function bars(el, items, warn) {
   const max = Math.max(1, ...items.map((i) => i.n));
-  el.innerHTML = items.length ? items.map((i) => `<div class="bar-row"><span>${esc(i.label)}</span><div class="bar-track"><div class="bar-fill${warn ? " warn" : ""}" style="width:${(100 * i.n) / max}%"></div></div><span class="bar-n">${fmt(i.n)}${i.pct != null ? " · " + pc(i.pct) : ""}</span></div>`).join("")
+  el.innerHTML = items.length ? items.map((i) => `<div class="bar-row"><span>${esc(i.label)}</span><div class="bar-track"><div class="bar-fill${warn ? " warn" : ""}" style="width:${(100 * i.n) / max}%"></div></div><span class="bar-n">${fmt(i.n)}${i.pct != null ? " · " + pc(i.pct) : ""}${i.extra ? " · " + i.extra : ""}</span></div>`).join("")
     : `<p class="empty">Nothing yet.</p>`;
 }
 const fromObj = (o) => Object.entries(o).sort((a, b) => b[1] - a[1]).map(([label, n]) => ({ label, n }));
 function table(el, rows) {
-  el.innerHTML = rows.length ? `<table class="t"><tr><th></th><th>Visitors</th><th>Starts</th><th>Registered</th><th>Conv.</th></tr>${rows.map((r) =>
-    `<tr><td>${esc(r.key)}</td><td>${fmt(r.visitors)}</td><td>${fmt(r.starts)}</td><td>${fmt(r.registered)}</td><td>${pc(r.conv)}</td></tr>`).join("")}</table>` : `<p class="empty">Nothing yet.</p>`;
+  el.innerHTML = rows.length ? `<table class="t"><tr><th></th><th>Visitors</th><th>Form visitors</th><th>Starts</th><th>Registered</th><th>Conv.</th></tr>${rows.map((r) =>
+    `<tr><td>${esc(r.key)}</td><td>${fmt(r.visitors)}</td><td>${fmt(r.formVisitors)}</td><td>${fmt(r.starts)}</td><td>${fmt(r.registered)}</td><td>${pc(r.conv)}</td></tr>`).join("")}</table>` : `<p class="empty">Nothing yet.</p>`;
+}
+function funnel(s) {
+  const f = s[view], leakAt = (view === "form" ? s.formLeak : s.journeyLeak)?.label, max = Math.max(1, ...f.map((x) => x.n));
+  document.getElementById("funnelCap").textContent = view === "form"
+    ? "Everyone who opened the form, however they got there. Drop-off is the share lost since the step before."
+    : "From the League page to registered. Drop-off is the share lost since the step before.";
+  document.getElementById("funnel").innerHTML = f.map((x) => {
+    const lost = x.lost == null ? "" : x.lost === 0 ? `<span class="lost gain">—</span>` : x.lost < 0 ? `<span class="lost gain">+${fmt(-x.lost)}${x.label === "Form page" ? " direct" : ""}</span>`
+      : `<span class="lost${x.label === leakAt ? " big" : ""}">−${fmt(x.lost)} · ${pc(x.lostPct)}</span>`;
+    return `<div class="bar-row f"><span>${esc(x.label)}</span><div class="bar-track"><div class="bar-fill" style="width:${(100 * x.n) / max}%"></div></div><span class="bar-n">${fmt(x.n)} · ${pc(x.pct)}</span>${lost || "<span></span>"}</div>`;
+  }).join("") + (leakAt ? `<p class="cap" style="margin:10px 0 0">Biggest leak: <b>${esc(leakAt)}</b>.</p>` : "");
 }
 
-function render(data) {
-  const s = computeStats(data.events || [], data.regs || [], new Date());
-  const k = s.kpi, m = k.medianSeconds;
-  const tiles = [
-    ["Unique visitors", fmt(k.visitors), `${fmt(k.sessions)} sessions`],
-    ["Form starts", fmt(k.starts), `${pc(k.visitors ? (100 * k.starts) / k.visitors : 0)} of visitors`],
-    ["Registrations", fmt(k.registered), `${fmt(k.totalRegs)} saved in range`],
-    ["Conversion", pc(k.conversion), "visitor to registered"],
-    ["Completion", pc(k.completion), "started to registered"],
-    ["Median time", m == null ? "—" : `${Math.floor(m / 60)}m ${m % 60}s`, "to complete the form"],
-    ["Partner enquiries", fmt(k.partnerSent), `${fmt(k.partnerStarts)} started`],
-  ];
-  document.getElementById("kpis").innerHTML = tiles.map(([l, v, h]) => `<div class="kpi"><p class="l">${l}</p><p class="v">${v}</p><p class="h">${h}</p></div>`).join("");
-  bars(document.getElementById("funnel"), s.funnel.map((f) => ({ label: f.label, n: f.n, pct: f.pct })));
-  bars(document.getElementById("quit"), s.quit, true);
+function line(id, labels, sets, extra = {}) {
+  charts[id]?.destroy();
+  charts[id] = new Chart(document.getElementById(id), { type: extra.type || "line", data: { labels, datasets: sets },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
+      plugins: { legend: { labels: { color: "#43584a", usePointStyle: true, boxWidth: 8, font: { family: "Albert Sans" } } } },
+      scales: { x: { grid: { display: false }, ticks: { color: MUTED, maxRotation: 0, autoSkip: true } }, y: { beginAtZero: true, ticks: { precision: 0, color: MUTED }, grid: { color: GRID } } } } });
+}
+const ds = (label, data, color, more = {}) => ({ label, data, borderColor: color, backgroundColor: color, borderWidth: 2, pointRadius: 3, ...more });
+
+function render() {
+  const nowS = Date.now() / 1000;
+  const start = days === 1 ? new Date().setHours(0, 0, 0, 0) / 1000 : days ? nowS - days * 86400 : 0;
+  const span = days === 1 ? nowS - start : days * 86400;
+  const ev = all.events || [], rg = all.regs || [];
+  const cut = (a, b) => [ev.filter((r) => r[0] >= a && r[0] < b), rg.filter((r) => r.at >= a && r.at < b)];
+  const s = computeStats(...cut(start, Infinity), new Date());
+  const p = days ? computeStats(...cut(start - span, start), new Date()).kpi : null;   // the period before, same length
+  const k = s.kpi;
+  const delta = (key, isPct) => {
+    if (!p) return "";
+    const a = k[key], b = p[key];
+    if (isPct) { const d = a - b; return Math.abs(d) < 0.05 ? `<p class="d">same as before</p>` : `<p class="d ${d > 0 ? "up" : "down"}">${d > 0 ? "+" : "−"}${pc(Math.abs(d)).replace("%", "")} pts vs before</p>`; }
+    if (!b) return a ? `<p class="d up">new this period</p>` : "";
+    const d = (100 * (a - b)) / b;
+    return `<p class="d ${d >= 0 ? "up" : "down"}">${d >= 0 ? "+" : "−"}${pc(Math.abs(d))} vs before</p>`;
+  };
+  const tiles = (id, list) => document.getElementById(id).innerHTML = list.map(([l, v, h, d = ""]) => `<div class="kpi"><p class="l">${l}</p><p class="v">${v}</p><p class="h">${h}</p>${d}</div>`).join("");
+  tiles("k-traffic", [
+    ["Unique visitors", fmt(k.visitors), `${fmt(k.sessions)} sessions`, delta("visitors")],
+    ["Form visitors", fmt(k.formVisitors), "unique, opened the form", delta("formVisitors")],
+    ["Returning", pc(k.returning), `${pc(k.returningConv)} of them registered`],
+    ["Bounce rate", pc(k.bounce), "left the League page without a click", delta("bounce", true)],
+  ]);
+  tiles("k-form", [
+    ["Form starts", fmt(k.starts), `${pc(k.formVisitors ? (100 * k.starts) / k.formVisitors : 0)} of form visitors`, delta("starts")],
+    ["Registrations", fmt(k.registered), `${fmt(k.totalRegs)} saved in range`, delta("registered")],
+    ["Form conversion", pc(k.formConversion), "form visitor to registered", delta("formConversion", true)],
+    ["Completion", pc(k.completion), "started to registered", delta("completion", true)],
+    ["Abandoned", fmt(k.abandoned), "started, didn't register", delta("abandoned")],
+  ]);
+  tiles("k-behaviour", [
+    ["Error rate", pc(k.errorRate), "Register presses blocked", delta("errorRate", true)],
+    ["Time to complete", dur(k.medianSeconds), "median, start to registered"],
+    ["Time to register", dur(k.toRegisterSeconds), "median, first visit to registered"],
+    ["Overall conversion", pc(k.conversion), "any visitor to registered", delta("conversion", true)],
+    ["Partner enquiries", fmt(k.partnerSent), `${fmt(k.partnerStarts)} started`, delta("partnerSent")],
+  ]);
+  funnel(s);
+  bars(document.getElementById("quit"), s.quit.map((q) => ({ ...q, extra: dur(q.medianSeconds) })), true);
   bars(document.getElementById("blocked"), [...fromObj(s.blocked), ...fromObj(s.errors).map((e) => ({ label: "Error: " + e.label, n: e.n }))], true);
   table(document.getElementById("sources"), s.sources);
   table(document.getElementById("devices"), s.devices);
+  bars(document.getElementById("scroll"), s.scroll);
   bars(document.getElementById("clicks"), fromObj(s.clicks).map((c) => ({ label: c.label.replace(/_/g, " "), n: c.n })));
   const who = [["Level", s.who.level], ["Gender", s.who.gender], ["Dates", s.who.availability], ["Age", s.who.age], ["Playing for", s.who.experience]];
   document.getElementById("who").innerHTML = who.map(([t, o]) => `<div><p class="eyebrow" style="margin-bottom:8px">${t}</p>${
     fromObj(o).map((x) => `<p><span>${esc(x.label)}</span><span>${fmt(x.n)}</span></p>`).join("") || '<p class="empty">Nothing yet.</p>'}</div>`).join("");
 
-  const ink = "#1f5136";
-  if (chart) chart.destroy();
-  chart = new Chart(document.getElementById("daily"), {
-    type: "line",
-    data: { labels: s.daily.map((d) => new Date(d.day).toLocaleDateString("en-IN", { day: "numeric", month: "short" })), datasets: [
-      { label: "Visitors", data: s.daily.map((d) => d.visitors), borderColor: ink, backgroundColor: ink, borderWidth: 2, pointRadius: 3 },
-      { label: "Starts", data: s.daily.map((d) => d.starts), borderColor: "#8a9a6b", backgroundColor: "#8a9a6b", borderWidth: 2, borderDash: [6, 4], pointRadius: 3 },
-      { label: "Registered", data: s.daily.map((d) => d.registered), borderColor: "#a4372b", backgroundColor: "#a4372b", borderWidth: 2, pointStyle: "rectRot", pointRadius: 4 },
-    ] },
-    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
-      plugins: { legend: { labels: { color: "#43584a", usePointStyle: true, boxWidth: 8, font: { family: "Albert Sans" } } } },
-      scales: { x: { grid: { display: false }, ticks: { color: "#6d7c70" } }, y: { beginAtZero: true, ticks: { precision: 0, color: "#6d7c70" }, grid: { color: "#ddd8c8" } } } },
-  });
-  document.getElementById("foot").textContent = `Updated ${new Date().toLocaleString("en-IN")}. ${fmt((data.events || []).length)} events in range.`;
+  const dayLabel = (d) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  line("daily", s.daily.map((d) => dayLabel(d.day)), [
+    ds("Visitors", s.daily.map((d) => d.visitors), INK),
+    ds("Form visitors", s.daily.map((d) => d.formVisitors), SAGE, { borderDash: [6, 4] }),
+    ds("Starts", s.daily.map((d) => d.starts), MUTED, { borderDash: [2, 3], pointStyle: "triangle" }),
+    ds("Registered", s.daily.map((d) => d.registered), RUST, { pointStyle: "rectRot", pointRadius: 4 }),
+  ]);
+  // Target: all registrations ever, not just this range.
+  const cum = computeStats([], rg, new Date()).cumulative, target = Number(ls.get(TARGET_KEY)) || 0;
+  const cdays = [...new Set(cum.map((c) => c.day))];
+  const totals = cdays.map((d) => cum.filter((c) => c.day <= d).length);
+  line("cum", cdays.map(dayLabel), [ds("Registrations", totals, INK, { fill: false }),
+    ...(target ? [ds("Target", cdays.map(() => target), RUST, { borderDash: [6, 4], pointRadius: 0 })] : [])]);
+  line("hours", s.hours.map((h) => (h.hour % 12 || 12) + (h.hour < 12 ? "a" : "p")), [
+    ds("Visits", s.hours.map((h) => h.visits), INK, { borderRadius: 2 }), ds("Registrations", s.hours.map((h) => h.registered), RUST, { borderRadius: 2 })], { type: "bar" });
+  document.getElementById("foot").textContent = `Updated ${new Date().toLocaleString("en-IN")}. ${fmt(ev.length)} events in all.${p ? " \"vs before\" compares with the previous period of the same length." : ""}`;
 }
 
 async function show(pw) {
-  const data = await load(pw);
+  all = await load(pw);
   sessionStorage.setItem(PW_KEY, pw);
   document.getElementById("login").hidden = true;
   document.getElementById("app").hidden = false;
   document.getElementById("out").hidden = false;
-  render(data);
+  document.getElementById("target").value = ls.get(TARGET_KEY) || "";
+  render();
 }
-
 document.getElementById("pwForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const err = document.getElementById("pwErr");
   err.textContent = "";
   try { await show(document.getElementById("pw").value); }
-  catch (x) { err.textContent = x.auth ? "Incorrect password." : "Couldn't load the analytics. Try again."; if (!x.auth) window.DPC?.report("League stats: load", x); }
+  catch (x) { err.textContent = x.auth ? "Incorrect password." : "Couldn't load the analytics. Try again."; }
 });
-document.querySelectorAll(".range button").forEach((b) => b.addEventListener("click", async () => {
-  document.querySelectorAll(".range button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-  days = Number(b.dataset.days);
-  try { render(await load(sessionStorage.getItem(PW_KEY) || "")); } catch (x) { window.DPC?.toast?.("Couldn't load that range. Try again."); }
+const toggle = (sel, fn) => document.querySelectorAll(sel).forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll(sel).forEach((x) => x.setAttribute("aria-pressed", String(x === b))); fn(b); render();
 }));
+toggle(".range button", (b) => (days = Number(b.dataset.days)));
+toggle(".tabs button", (b) => (view = b.dataset.view));
+document.getElementById("target").addEventListener("change", (e) => { ls.set(TARGET_KEY, String(Math.max(0, Math.round(Number(e.target.value) || 0)))); render(); });
 document.getElementById("out").addEventListener("click", () => { sessionStorage.removeItem(PW_KEY); location.reload(); });
 const saved = sessionStorage.getItem(PW_KEY);
 if (saved) show(saved).catch(() => sessionStorage.removeItem(PW_KEY));
