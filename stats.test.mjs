@@ -1,0 +1,24 @@
+// Run: node stats.test.mjs — checks the numbers the dashboard shows.
+import { readFileSync } from "node:fs";
+import assert from "node:assert/strict";
+const { computeStats } = new Function(readFileSync(new URL("stats.js", import.meta.url), "utf8") + "\nreturn { computeStats };")();
+const T = 1_800_000_000;
+const ev = (dt, vid, sid, page, event, detail = "", src = "instagram", device = "mobile") => [T + dt, vid, sid, page, event, detail, src, device];
+const rows = [
+  ev(0, "a", "s1", "league", "view"), ev(5, "a", "s1", "league", "click", "hero_register"),
+  ev(6, "a", "s1", "register", "view"), ev(10, "a", "s1", "register", "start", "player"),
+  ev(20, "a", "s1", "register", "field", "availability"), ev(40, "a", "s1", "register", "field", "name"),
+  ev(200, "a", "s1", "register", "submit", "player"), ev(210, "a", "s1", "register", "success", "player"),
+  ev(0, "b", "s2", "register", "view", "", "whatsapp"), ev(3, "b", "s2", "register", "start", "player", "whatsapp"),
+  ev(9, "b", "s2", "register", "field", "dob", "whatsapp"), ev(12, "b", "s2", "register", "submit", "player", "whatsapp"),
+  ev(12, "b", "s2", "register", "invalid", "phone", "whatsapp"),
+  ev(0, "c", "s3", "league", "view", "", "direct", "desktop"),
+];
+const s = computeStats(rows, [{ level: "Intermediate", dob: "1996-05-01" }], new Date(T * 1000));
+assert.deepEqual([s.kpi.visitors, s.kpi.starts, s.kpi.registered, s.kpi.completion, s.kpi.medianSeconds], [3, 2, 1, 50, 200]);
+assert.deepEqual(s.funnel.map((f) => f.n), [2, 1, 2, 2, 1, 2, 0, 0, 2, 1]);
+assert.deepEqual(s.quit, [{ label: "Date of birth", n: 1, pct: 100 }]);
+assert.deepEqual(s.blocked, { "WhatsApp number": 1 });
+assert.deepEqual(s.sources.map((x) => [x.key, x.visitors, x.registered]), [["instagram", 1, 1], ["whatsapp", 1, 0], ["direct", 1, 0]]);
+assert.deepEqual(s.who.age, { "25–34": 1 });
+console.log("ok");
