@@ -197,14 +197,14 @@ function render() {
   };
   const tiles = (id, list) => document.getElementById(id).innerHTML = list.map(([l, v, h, d = ""]) => `<div class="kpi"><p class="l">${l}</p><p class="v">${v}</p><p class="h">${h}</p>${d}</div>`).join("");
   tiles("k-traffic", [
-    ["Unique visitors", fmt(k.visitors), `${fmt(k.sessions)} sessions`, delta("visitors")],
-    ["Form visitors", fmt(k.formVisitors), "unique, opened the form", delta("formVisitors")],
+    ["Unique visitors", fmt(k.visitors), `League page or form, each person once · ${fmt(k.sessions)} visits`, delta("visitors")],
+    ["Form visitors", fmt(k.formVisitors), "of those, opened the form", delta("formVisitors")],
     ["Returning", pc(k.returning), `${pc(k.returningConv)} of them registered`],
-    ["Bounce rate", pc(k.bounce), "left the League page without a click", delta("bounce", true)],
+    ["League page bounce", pc(k.bounce), "saw the League page, left without clicking or opening the form", delta("bounce", true)],
   ]);
   tiles("k-form", [
     ["Form starts", fmt(k.starts), `${pc(k.formVisitors ? (100 * k.starts) / k.formVisitors : 0)} of form visitors`, delta("starts")],
-    ["Registrations", fmt(k.registered), `${fmt(k.totalRegs)} saved in range`, delta("registered")],
+    ["Registrations", fmt(k.totalRegs), `saved in this range; ${fmt(k.registered)} from tracked visits`, delta("totalRegs")],
     ["Form conversion", pc(k.formConversion), "form visitor to registered", delta("formConversion", true)],
     ["Completion", pc(k.completion), "started to registered", delta("completion", true)],
     ["Abandoned", fmt(k.abandoned), "started, didn't register", delta("abandoned")],
