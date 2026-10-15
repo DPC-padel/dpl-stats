@@ -25,7 +25,11 @@
 .kpi{background:var(--surface);border:1px solid var(--line);padding:18px 20px}
 .kpi .l{font:600 12px/1.3 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)}
 .kpi .v{font-family:var(--serif);font-weight:600;font-size:40px;line-height:1.1;color:var(--gold);font-variant-numeric:lining-nums tabular-nums;margin-top:6px}
-.kpi .h{font-size:13px;color:var(--text-3)}
+.kpi{position:relative}
+.kpi .l{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.info{width:22px;height:22px;border-radius:50%;box-shadow:inset 0 0 0 1px var(--line);font:italic 600 12px/1 var(--serif);color:var(--text-3);flex:none;letter-spacing:0;text-transform:none}
+.info:hover,.info[aria-expanded=true]{background:var(--gold);color:#f8f4ea;box-shadow:none}
+.tip{position:absolute;z-index:5;left:0;right:0;top:calc(100% + 6px);background:var(--text);color:#f8f4ea;font-size:13px;line-height:1.45;padding:10px 12px;border-radius:var(--r)}
 .bars{display:grid;gap:8px}
 .bar-row{display:grid;grid-template-columns:minmax(110px,190px) minmax(0,1fr) 110px;gap:12px;align-items:center;font-size:15px}
 .bar-track{height:18px;background:var(--surface)}
@@ -53,7 +57,6 @@ table.t{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:
 .lost{text-align:right;font-size:14px;font-variant-numeric:tabular-nums;color:#a4372b}
 .lost.gain{color:var(--text-3)}
 .lost.big{background:#f3dcd6;padding:2px 6px}
-.kpi .d{font-size:13px;margin-top:2px}.up{color:#2a6649}.down{color:#a4372b}
 .kgroup{font:600 12px/1.3 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);margin:22px 0 10px}
 .tabs{display:inline-flex;gap:6px;margin-bottom:18px}
 .tabs button{min-height:34px;padding:0 12px;border-radius:var(--r);font-size:14px;box-shadow:inset 0 0 0 1px var(--line);color:var(--text-2)}
@@ -182,43 +185,34 @@ const ds = (label, data, color, more = {}) => ({ label, data, borderColor: color
 function render() {
   const nowS = Date.now() / 1000;
   const start = days === 1 ? new Date().setHours(0, 0, 0, 0) / 1000 : days ? nowS - days * 86400 : 0;
-  const span = days === 1 ? nowS - start : days * 86400;
   const ev = all.events || [], rg = all.regs || [];
   const cut = (a, b) => [ev.filter((r) => r[0] >= a && r[0] < b), rg.filter((r) => r.at >= a && r.at < b)];
   const s = computeStats(...cut(start, Infinity), new Date());
-  const p = days ? computeStats(...cut(start - span, start), new Date()).kpi : null;   // the period before, same length
   const k = s.kpi;
-  const delta = (key, isPct) => {
-    if (!p) return "";
-    const a = k[key], b = p[key];
-    if (isPct) { const d = a - b; return Math.abs(d) < 0.05 ? `<p class="d">same as before</p>` : `<p class="d ${d > 0 ? "up" : "down"}">${d > 0 ? "+" : "−"}${pc(Math.abs(d)).replace("%", "")} pts vs before</p>`; }
-    if (!b) return a ? `<p class="d up">new this period</p>` : "";
-    const d = (100 * (a - b)) / b;
-    return `<p class="d ${d >= 0 ? "up" : "down"}">${d >= 0 ? "+" : "−"}${pc(Math.abs(d))} vs before</p>`;
-  };
-  const tiles = (id, list) => document.getElementById(id).innerHTML = list.map(([l, v, h, d = ""]) => `<div class="kpi"><p class="l">${l}</p><p class="v">${v}</p><p class="h">${h}</p>${d}</div>`).join("");
+  const tiles = (id, list) => document.getElementById(id).innerHTML = list.map(([l, v, h]) =>
+    `<div class="kpi"><p class="l">${l}<button class="info" type="button" aria-label="What is ${l}?" aria-expanded="false">i</button></p><p class="v">${v}</p><p class="tip" hidden>${h}</p></div>`).join("");
   tiles("k-traffic", [
-    ["Total visits", fmt(k.formVisits), "every time the form was opened", delta("formVisits")],
-    ["Unique visitors", fmt(k.formVisitors), "people who opened the form, each once", delta("formVisitors")],
-    ["Bounce rate", pc(k.formBounce), `opened the form, left without registering · ${fmt(k.leftBeforeStarting)} before answering anything`, delta("formBounce", true)],
+    ["Total visits", fmt(k.formVisits), "every time the form was opened"],
+    ["Unique visitors", fmt(k.formVisitors), "people who opened the form, each once"],
+    ["Bounce rate", pc(k.formBounce), `opened the form, left without registering · ${fmt(k.leftBeforeStarting)} before answering anything`],
     ["Returning", pc(k.returning), `came back to the form; ${pc(k.returningConv)} of them registered`],
   ]);
   tiles("k-form", [
-    ["Form starts", fmt(k.starts), `${pc(k.formVisitors ? (100 * k.starts) / k.formVisitors : 0)} of unique visitors`, delta("starts")],
-    ["Registrations", fmt(k.totalRegs), `saved in this range; ${fmt(k.registered)} from tracked visits`, delta("totalRegs")],
-    ["Conversion", pc(k.formConversion), "unique visitor to registered", delta("formConversion", true)],
-    ["Completion", pc(k.completion), "started to registered", delta("completion", true)],
-    ["Abandoned", fmt(k.abandoned), "started, didn't register", delta("abandoned")],
+    ["Form starts", fmt(k.starts), `${pc(k.formVisitors ? (100 * k.starts) / k.formVisitors : 0)} of unique visitors`],
+    ["Registrations", fmt(k.totalRegs), `saved in this range; ${fmt(k.registered)} from tracked visits`],
+    ["Conversion", pc(k.formConversion), "unique visitor to registered"],
+    ["Completion", pc(k.completion), "started to registered"],
+    ["Abandoned", fmt(k.abandoned), "started, didn't register"],
   ]);
   tiles("k-behaviour", [
-    ["Error rate", pc(k.errorRate), "Register presses blocked", delta("errorRate", true)],
+    ["Error rate", pc(k.errorRate), "Register presses blocked"],
     ["Time to complete", dur(k.medianSeconds), "median, start to registered"],
     ["Time to register", dur(k.toRegisterSeconds), "median, first opening the form to registered"],
   ]);
   tiles("k-league", [
-    ["Visitors", fmt(k.leagueVisitors), "opened the League page", delta("leagueVisitors")],
-    ["Bounce rate", pc(k.leagueBounce), "left without clicking or opening the form", delta("leagueBounce", true)],
-    ["Partner enquiries", fmt(k.partnerSent), `${fmt(k.partnerStarts)} started`, delta("partnerSent")],
+    ["Visitors", fmt(k.leagueVisitors), "opened the League page"],
+    ["Bounce rate", pc(k.leagueBounce), "left without clicking or opening the form"],
+    ["Partner enquiries", fmt(k.partnerSent), `${fmt(k.partnerStarts)} started`],
   ]);
   funnel(s);
   bars(document.getElementById("quit"), s.quit.map((q) => ({ ...q, extra: dur(q.medianSeconds) })), true);
@@ -246,7 +240,7 @@ function render() {
     ...(target ? [ds("Target", cdays.map(() => target), RUST, { borderDash: [6, 4], pointRadius: 0 })] : [])]);
   line("hours", s.hours.map((h) => (h.hour % 12 || 12) + (h.hour < 12 ? "a" : "p")), [
     ds("Form visits", s.hours.map((h) => h.visits), INK, { borderRadius: 2 }), ds("Registrations", s.hours.map((h) => h.registered), RUST, { borderRadius: 2 })], { type: "bar" });
-  document.getElementById("foot").textContent = `Updated ${new Date().toLocaleString("en-IN")}. ${fmt(ev.length)} events in all.${p ? " \"vs before\" compares with the previous period of the same length." : ""}`;
+  document.getElementById("foot").textContent = `Updated ${new Date().toLocaleString("en-IN")}. ${fmt(ev.length)} events in all.`;
 }
 
 async function show(pw) {
@@ -271,6 +265,12 @@ const toggle = (sel, fn) => document.querySelectorAll(sel).forEach((b) => b.addE
 toggle(".range button", (b) => (days = Number(b.dataset.days)));
 toggle(".tabs button", (b) => (view = b.dataset.view));
 document.getElementById("target").addEventListener("change", (e) => { ls.set(TARGET_KEY, String(Math.max(0, Math.round(Number(e.target.value) || 0)))); render(); });
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".info");
+  document.querySelectorAll(".info[aria-expanded=true]").forEach((o) => { if (o !== btn) { o.setAttribute("aria-expanded", "false"); o.closest(".kpi").querySelector(".tip").hidden = true; } });
+  if (btn) { const tip = btn.closest(".kpi").querySelector(".tip"); tip.hidden = !tip.hidden; btn.setAttribute("aria-expanded", String(!tip.hidden)); }
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") document.querySelectorAll(".info[aria-expanded=true]").forEach((o) => o.click()); });
 document.getElementById("out").addEventListener("click", () => { sessionStorage.removeItem(PW_KEY); location.reload(); });
 const saved = sessionStorage.getItem(PW_KEY);
 if (saved) show(saved).catch(() => sessionStorage.removeItem(PW_KEY));
