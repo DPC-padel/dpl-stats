@@ -88,8 +88,8 @@ table.t{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:
       <button data-days="1">Today</button><button data-days="7" aria-pressed="true">7 days</button><button data-days="30">30 days</button><button data-days="0">All</button>
     </div>
   </div>
-  <p class="kgroup">Traffic</p><div class="kpis" id="k-traffic"></div>
-  <p class="kgroup">The form</p><div class="kpis" id="k-form"></div>
+  <p class="kgroup">Who opened the form</p><div class="kpis" id="k-traffic"></div>
+  <p class="kgroup">Filling it in</p><div class="kpis" id="k-form"></div>
   <p class="kgroup">Behaviour</p><div class="kpis" id="k-behaviour"></div>
 
   <section><h2>Funnel and drop-off</h2><p class="cap" id="funnelCap"></p>
@@ -101,30 +101,31 @@ table.t{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:
     <div><h2>What blocks Register</h2><p class="cap">Required question left empty when Register was pressed, and save errors.</p><div class="bars" id="blocked"></div></div>
   </section>
 
-  <section><h2>Every day</h2><p class="cap">Visitors, form visitors, form starts and registrations, India time.</p><div class="chart"><canvas id="daily" role="img" aria-label="Daily visitors, form visitors, starts and registrations"></canvas></div></section>
+  <section><h2>Every day</h2><p class="cap">Form visits, unique visitors, starts and registrations, India time.</p><div class="chart"><canvas id="daily" role="img" aria-label="Daily visitors, form visitors, starts and registrations"></canvas></div></section>
 
   <section class="grid2">
     <div><h2>Toward the target</h2><p class="cap">All registrations so far, over time.</p>
       <label class="target">Target <input id="target" type="number" min="1" step="1" inputmode="numeric"></label>
       <div class="chart"><canvas id="cum" role="img" aria-label="Cumulative registrations against the target"></canvas></div></div>
-    <div><h2>Best hours</h2><p class="cap">Visits and registrations by hour, India time. Post when people show up.</p><div class="chart"><canvas id="hours" role="img" aria-label="Visits and registrations by hour of day"></canvas></div></div>
+    <div><h2>Best hours</h2><p class="cap">Form visits and registrations by hour, India time. Post when people show up.</p><div class="chart"><canvas id="hours" role="img" aria-label="Visits and registrations by hour of day"></canvas></div></div>
   </section>
 
-  <section><h2>Sources</h2><p class="cap">Tag shared links with ?utm_source=instagram (or whatsapp, etc.) to see them here. Conversion is form visitors to registered.</p><div id="sources"></div></section>
+  <section><h2>Sources</h2><p class="cap">Where form visits come from. Tag shared links with ?utm_source=instagram (or whatsapp, etc.). Conversion is unique visitors to registered.</p><div id="sources"></div></section>
 
-  <section class="grid2">
-    <div><h2>Device</h2><p class="cap">&nbsp;</p><div id="devices"></div></div>
-    <div><h2>League page scroll</h2><p class="cap">How far down the League page visitors got.</p><div class="bars" id="scroll"></div></div>
-  </section>
-
-  <section><h2>Button clicks</h2><p class="cap">League page and form.</p><div class="bars" id="clicks"></div></section>
+  <section><h2>Device</h2><p class="cap">Form visits by device.</p><div id="devices"></div></section>
 
   <section><h2>Who's registering</h2><p class="cap">From the saved registrations in this range.</p><div class="who" id="who"></div></section>
+
+  <section><h2>League page</h2><p class="cap">For context: the page most people see before the form.</p><div class="kpis" id="k-league"></div>
+    <div class="grid2" style="margin-top:28px">
+      <div><h3 style="margin-bottom:12px">How far people scroll</h3><div class="bars" id="scroll"></div></div>
+      <div><h3 style="margin-bottom:12px">Button clicks</h3><div class="bars" id="clicks"></div></div>
+    </div></section>
   <p class="cap" id="foot" style="margin-top:24px"></p>
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="stats.js?v=3"></script>
+<script src="stats.js?v=4"></script>
 <script>
 const SB = { url: "https://zruqzybdpniofxbcwuat.supabase.co", key: "sb_publishable_O5kl7By_s23gMXNULck-yw_cksU-9Oy" };
 const PW_KEY = "dpcAdminPw", TARGET_KEY = "dplTarget";
@@ -154,8 +155,8 @@ function bars(el, items, warn) {
 }
 const fromObj = (o) => Object.entries(o).sort((a, b) => b[1] - a[1]).map(([label, n]) => ({ label, n }));
 function table(el, rows) {
-  el.innerHTML = rows.length ? `<table class="t"><tr><th></th><th>Visitors</th><th>Form visitors</th><th>Starts</th><th>Registered</th><th>Conv.</th></tr>${rows.map((r) =>
-    `<tr><td>${esc(r.key)}</td><td>${fmt(r.visitors)}</td><td>${fmt(r.formVisitors)}</td><td>${fmt(r.starts)}</td><td>${fmt(r.registered)}</td><td>${pc(r.conv)}</td></tr>`).join("")}</table>` : `<p class="empty">Nothing yet.</p>`;
+  el.innerHTML = rows.length ? `<table class="t"><tr><th></th><th>Visits</th><th>Visitors</th><th>Starts</th><th>Registered</th><th>Conv.</th></tr>${rows.map((r) =>
+    `<tr><td>${esc(r.key)}</td><td>${fmt(r.visits)}</td><td>${fmt(r.visitors)}</td><td>${fmt(r.starts)}</td><td>${fmt(r.registered)}</td><td>${pc(r.conv)}</td></tr>`).join("")}</table>` : `<p class="empty">Nothing yet.</p>`;
 }
 function funnel(s) {
   const f = s[view], leakAt = (view === "form" ? s.formLeak : s.journeyLeak)?.label, max = Math.max(1, ...f.map((x) => x.n));
@@ -197,23 +198,26 @@ function render() {
   };
   const tiles = (id, list) => document.getElementById(id).innerHTML = list.map(([l, v, h, d = ""]) => `<div class="kpi"><p class="l">${l}</p><p class="v">${v}</p><p class="h">${h}</p>${d}</div>`).join("");
   tiles("k-traffic", [
-    ["Unique visitors", fmt(k.visitors), `League page or form, each person once · ${fmt(k.sessions)} visits`, delta("visitors")],
-    ["Form visitors", fmt(k.formVisitors), "of those, opened the form", delta("formVisitors")],
-    ["Returning", pc(k.returning), `${pc(k.returningConv)} of them registered`],
-    ["League page bounce", pc(k.bounce), "saw the League page, left without clicking or opening the form", delta("bounce", true)],
+    ["Total visits", fmt(k.formVisits), "every time the form was opened", delta("formVisits")],
+    ["Unique visitors", fmt(k.formVisitors), "people who opened the form, each once", delta("formVisitors")],
+    ["Bounce rate", pc(k.formBounce), "opened the form, answered nothing", delta("formBounce", true)],
+    ["Returning", pc(k.returning), `came back to the form; ${pc(k.returningConv)} of them registered`],
   ]);
   tiles("k-form", [
-    ["Form starts", fmt(k.starts), `${pc(k.formVisitors ? (100 * k.starts) / k.formVisitors : 0)} of form visitors`, delta("starts")],
+    ["Form starts", fmt(k.starts), `${pc(k.formVisitors ? (100 * k.starts) / k.formVisitors : 0)} of unique visitors`, delta("starts")],
     ["Registrations", fmt(k.totalRegs), `saved in this range; ${fmt(k.registered)} from tracked visits`, delta("totalRegs")],
-    ["Form conversion", pc(k.formConversion), "form visitor to registered", delta("formConversion", true)],
+    ["Conversion", pc(k.formConversion), "unique visitor to registered", delta("formConversion", true)],
     ["Completion", pc(k.completion), "started to registered", delta("completion", true)],
     ["Abandoned", fmt(k.abandoned), "started, didn't register", delta("abandoned")],
   ]);
   tiles("k-behaviour", [
     ["Error rate", pc(k.errorRate), "Register presses blocked", delta("errorRate", true)],
     ["Time to complete", dur(k.medianSeconds), "median, start to registered"],
-    ["Time to register", dur(k.toRegisterSeconds), "median, first visit to registered"],
-    ["Overall conversion", pc(k.conversion), "any visitor to registered", delta("conversion", true)],
+    ["Time to register", dur(k.toRegisterSeconds), "median, first opening the form to registered"],
+  ]);
+  tiles("k-league", [
+    ["Visitors", fmt(k.leagueVisitors), "opened the League page", delta("leagueVisitors")],
+    ["Bounce rate", pc(k.leagueBounce), "left without clicking or opening the form", delta("leagueBounce", true)],
     ["Partner enquiries", fmt(k.partnerSent), `${fmt(k.partnerStarts)} started`, delta("partnerSent")],
   ]);
   funnel(s);
@@ -229,8 +233,8 @@ function render() {
 
   const dayLabel = (d) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
   line("daily", s.daily.map((d) => dayLabel(d.day)), [
-    ds("Visitors", s.daily.map((d) => d.visitors), INK),
-    ds("Form visitors", s.daily.map((d) => d.formVisitors), SAGE, { borderDash: [6, 4] }),
+    ds("Visits", s.daily.map((d) => d.visits), INK),
+    ds("Unique visitors", s.daily.map((d) => d.visitors), SAGE, { borderDash: [6, 4] }),
     ds("Starts", s.daily.map((d) => d.starts), MUTED, { borderDash: [2, 3], pointStyle: "triangle" }),
     ds("Registered", s.daily.map((d) => d.registered), RUST, { pointStyle: "rectRot", pointRadius: 4 }),
   ]);
@@ -241,7 +245,7 @@ function render() {
   line("cum", cdays.map(dayLabel), [ds("Registrations", totals, INK, { fill: false }),
     ...(target ? [ds("Target", cdays.map(() => target), RUST, { borderDash: [6, 4], pointRadius: 0 })] : [])]);
   line("hours", s.hours.map((h) => (h.hour % 12 || 12) + (h.hour < 12 ? "a" : "p")), [
-    ds("Visits", s.hours.map((h) => h.visits), INK, { borderRadius: 2 }), ds("Registrations", s.hours.map((h) => h.registered), RUST, { borderRadius: 2 })], { type: "bar" });
+    ds("Form visits", s.hours.map((h) => h.visits), INK, { borderRadius: 2 }), ds("Registrations", s.hours.map((h) => h.registered), RUST, { borderRadius: 2 })], { type: "bar" });
   document.getElementById("foot").textContent = `Updated ${new Date().toLocaleString("en-IN")}. ${fmt(ev.length)} events in all.${p ? " \"vs before\" compares with the previous period of the same length." : ""}`;
 }
 

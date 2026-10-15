@@ -40,7 +40,6 @@ function computeStats(rows, regs, now) {
   const uniq = (list) => new Set(list.map((s) => s.vid)).size;
   const pct = (a, b) => (b ? (100 * a) / b : 0);
 
-  const visitors = uniq(sessions);
   const formSessions = sessions.filter((s) => s.pages.has("register"));
   const formVisitors = uniq(formSessions);
   const starts = count((s) => s.start);
@@ -77,19 +76,19 @@ function computeStats(rows, regs, now) {
 
   const tally = (pick) => { const o = {}; rows.forEach((r) => { const k = pick(r); if (k) o[k] = (o[k] || 0) + 1; }); return o; };
 
+  // Form visits by source / device.
   const groupBy = (key) => {
     const g = {};
-    sessions.forEach((s) => (g[s[key]] = g[s[key]] || []).push(s));
+    formSessions.forEach((s) => (g[s[key]] = g[s[key]] || []).push(s));
     return Object.entries(g).map(([k, list]) => {
-      const v = uniq(list), fv = uniq(list.filter((s) => s.pages.has("register")));
-      const st = count((s) => s.start, list), rg = count((s) => s.success, list);
-      return { key: k, visitors: v, formVisitors: fv, starts: st, registered: rg, conv: pct(rg, fv) };
-    }).sort((a, b) => b.visitors - a.visitors);
+      const u = uniq(list), st = count((s) => s.start, list), rg = count((s) => s.success, list);
+      return { key: k, visits: list.length, visitors: u, starts: st, registered: rg, conv: pct(rg, u) };
+    }).sort((a, b) => b.visits - a.visits);
   };
 
-  // Returning visitors, and how long from first visit to registering.
+  // People who came back to the form, and how long from first opening it to registering.
   const byVid = {};
-  sessions.forEach((s) => (byVid[s.vid] = byVid[s.vid] || []).push(s));
+  formSessions.forEach((s) => (byVid[s.vid] = byVid[s.vid] || []).push(s));
   const people = Object.values(byVid);
   const returning = people.filter((p) => p.length > 1);
   const toRegister = people.map((p) => { const won = p.find((s) => s.success); return won ? won.success - Math.min(...p.map((s) => s.first)) : null; });
@@ -98,11 +97,11 @@ function computeStats(rows, regs, now) {
   const day = (t) => new Date((t + IST) * 1000).toISOString().slice(0, 10);
   const hour = (t) => new Date((t + IST) * 1000).getUTCHours();
   const days = {};
-  const d = (k) => (days[k] = days[k] || { vids: new Set(), formVids: new Set(), starts: 0, registered: 0 });
-  sessions.forEach((s) => { const x = d(day(s.first)); x.vids.add(s.vid); if (s.pages.has("register")) x.formVids.add(s.vid); if (s.start) x.starts++; if (s.success) x.registered++; });
-  const daily = Object.keys(days).sort().map((k) => ({ day: k, visitors: days[k].vids.size, formVisitors: days[k].formVids.size, starts: days[k].starts, registered: days[k].registered }));
+  const d = (k) => (days[k] = days[k] || { visits: 0, vids: new Set(), starts: 0, registered: 0 });
+  formSessions.forEach((s) => { const x = d(day(s.first)); x.visits++; x.vids.add(s.vid); if (s.start) x.starts++; if (s.success) x.registered++; });
+  const daily = Object.keys(days).sort().map((k) => ({ day: k, visits: days[k].visits, visitors: days[k].vids.size, starts: days[k].starts, registered: days[k].registered }));
   const hours = Array.from({ length: 24 }, (_, h) => ({ hour: h, visits: 0, registered: 0 }));
-  sessions.forEach((s) => { hours[hour(s.first)].visits++; if (s.success) hours[hour(s.success)].registered++; });
+  formSessions.forEach((s) => { hours[hour(s.first)].visits++; if (s.success) hours[hour(s.success)].registered++; });
 
   // Who's registering, from the registrations themselves.
   const mix = (k) => { const o = {}; regs.forEach((r) => { const v = r[k] || "—"; o[v] = (o[v] || 0) + 1; }); return o; };
@@ -118,9 +117,12 @@ function computeStats(rows, regs, now) {
 
   return {
     kpi: {
-      visitors, formVisitors, sessions: sessions.length, starts, registered, abandoned,
-      conversion: pct(registered, visitors), formConversion: pct(registered, formVisitors), completion: pct(registered, starts),
-      bounce: pct(count((s) => !s.clicked && !s.pages.has("register"), leagueSessions), leagueSessions.length),
+      // The form: visits (every opening), visitors (each person once), bounce (opened, answered nothing).
+      formVisits: formSessions.length, formVisitors, starts, registered, abandoned,
+      formConversion: pct(registered, formVisitors), completion: pct(registered, starts),
+      formBounce: pct(count((s) => !s.start, formSessions), formSessions.length),
+      // League page, for context.
+      leagueVisitors: uniq(leagueSessions), leagueBounce: pct(count((s) => !s.clicked && !s.pages.has("register"), leagueSessions), leagueSessions.length),
       errorRate: pct(count((s) => s.submit && s.invalid), submitted),
       returning: pct(returning.length, people.length), returningConv: pct(returning.filter((p) => p.some((s) => s.success)).length, returning.length),
       medianSeconds: median(sessions.filter((s) => s.start && s.success > s.start).map((s) => s.success - s.start)),
