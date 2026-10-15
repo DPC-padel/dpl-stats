@@ -78,7 +78,7 @@ table.t{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:
   <p class="eyebrow">Admin</p>
   <h1 style="font-size:40px">Registration analytics</h1>
   <form id="pwForm">
-    <input id="pw" type="password" placeholder="Admin password" autocomplete="current-password" aria-label="Admin password" required>
+    <input id="pw" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password" required>
     <button class="btn btn-primary">View analytics</button>
     <p class="err" id="pwErr" role="alert"></p>
   </form>
@@ -89,6 +89,7 @@ table.t{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:
     <div><p class="eyebrow">Season One · registration form</p><h1>Analytics</h1></div>
     <div class="range" role="group" aria-label="Date range">
       <button data-days="1">Today</button><button data-days="7" aria-pressed="true">7 days</button><button data-days="30">30 days</button><button data-days="0">All</button>
+      <button id="refresh" type="button" aria-label="Refresh data" title="Refresh data" style="box-shadow:inset 0 0 0 1px var(--line)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg> Refresh</button>
     </div>
   </div>
   <p class="kgroup">Who opened the form</p><div class="kpis" id="k-traffic"></div>
@@ -131,7 +132,7 @@ table.t{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:
 <script src="stats.js?v=5"></script>
 <script>
 const SB = { url: "https://zruqzybdpniofxbcwuat.supabase.co", key: "sb_publishable_O5kl7By_s23gMXNULck-yw_cksU-9Oy" };
-const PW_KEY = "dpcAdminPw", TARGET_KEY = "dplTarget";
+const PW_KEY = "dplStatsPw", TARGET_KEY = "dplTarget";
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = (n) => Math.round(n).toLocaleString("en-IN");
 const pc = (n) => (n >= 10 || n === 0 ? Math.round(n) : n.toFixed(1)) + "%";
@@ -262,7 +263,14 @@ document.getElementById("pwForm").addEventListener("submit", async (e) => {
 const toggle = (sel, fn) => document.querySelectorAll(sel).forEach((b) => b.addEventListener("click", () => {
   document.querySelectorAll(sel).forEach((x) => x.setAttribute("aria-pressed", String(x === b))); fn(b); render();
 }));
-toggle(".range button", (b) => (days = Number(b.dataset.days)));
+toggle(".range button[data-days]", (b) => (days = Number(b.dataset.days)));
+document.getElementById("refresh").addEventListener("click", async (e) => {
+  const b = e.currentTarget;
+  b.disabled = true; b.lastChild.textContent = " Refreshing…";
+  try { all = await load(sessionStorage.getItem(PW_KEY) || ""); render(); }
+  catch (x) { if (x.auth) { sessionStorage.removeItem(PW_KEY); location.reload(); } else alert("Couldn't refresh. Check your connection and try again."); }
+  finally { b.disabled = false; b.lastChild.textContent = " Refresh"; }
+});
 toggle(".tabs button", (b) => (view = b.dataset.view));
 document.getElementById("target").addEventListener("change", (e) => { ls.set(TARGET_KEY, String(Math.max(0, Math.round(Number(e.target.value) || 0)))); render(); });
 document.addEventListener("click", (e) => {
