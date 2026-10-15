@@ -117,10 +117,11 @@ function computeStats(rows, regs, now) {
 
   return {
     kpi: {
-      // The form: visits (every opening), visitors (each person once), bounce (opened, answered nothing).
+      // The form: visits (every opening), visitors (each person once), bounce (opened it, left without registering).
       formVisits: formSessions.length, formVisitors, starts, registered, abandoned,
       formConversion: pct(registered, formVisitors), completion: pct(registered, starts),
-      formBounce: pct(count((s) => !s.start, formSessions), formSessions.length),
+      formBounce: pct(count((s) => !s.success, formSessions), formSessions.length),
+      leftBeforeStarting: count((s) => !s.start, formSessions),
       // League page, for context.
       leagueVisitors: uniq(leagueSessions), leagueBounce: pct(count((s) => !s.clicked && !s.pages.has("register"), leagueSessions), leagueSessions.length),
       errorRate: pct(count((s) => s.submit && s.invalid), submitted),

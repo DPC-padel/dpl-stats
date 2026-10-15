@@ -125,7 +125,7 @@ table.t{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="stats.js?v=4"></script>
+<script src="stats.js?v=5"></script>
 <script>
 const SB = { url: "https://zruqzybdpniofxbcwuat.supabase.co", key: "sb_publishable_O5kl7By_s23gMXNULck-yw_cksU-9Oy" };
 const PW_KEY = "dpcAdminPw", TARGET_KEY = "dplTarget";
@@ -200,7 +200,7 @@ function render() {
   tiles("k-traffic", [
     ["Total visits", fmt(k.formVisits), "every time the form was opened", delta("formVisits")],
     ["Unique visitors", fmt(k.formVisitors), "people who opened the form, each once", delta("formVisitors")],
-    ["Bounce rate", pc(k.formBounce), "opened the form, answered nothing", delta("formBounce", true)],
+    ["Bounce rate", pc(k.formBounce), `opened the form, left without registering · ${fmt(k.leftBeforeStarting)} before answering anything`, delta("formBounce", true)],
     ["Returning", pc(k.returning), `came back to the form; ${pc(k.returningConv)} of them registered`],
   ]);
   tiles("k-form", [

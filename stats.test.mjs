@@ -16,7 +16,7 @@ const rows = [
 ];
 const s = computeStats(rows, [{ level: "Intermediate", dob: "1996-05-01" }], new Date(T * 1000));
 assert.deepEqual([s.kpi.formVisits, s.kpi.formVisitors, s.kpi.starts, s.kpi.registered, s.kpi.completion, s.kpi.medianSeconds], [2, 2, 2, 1, 50, 200]);
-assert.equal(s.kpi.formBounce, 0);
+assert.equal(s.kpi.formBounce, 50);                            // b opened the form and left without registering
 assert.deepEqual(s.journey.map((f) => f.n), [2, 1, 2, 2, 1, 2, 0, 0, 2, 1]);
 assert.deepEqual(s.journey.map((f) => f.lost), [null, 1, -1, 0, 1, -1, 2, 0, -2, 1]);
 assert.equal(s.kpi.formVisitors, 2);
