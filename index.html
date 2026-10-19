@@ -105,6 +105,12 @@ table.t{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:
     <div><h2>What blocks Register</h2><p class="cap">Required question left empty when Register was pressed, and save errors.</p><div class="bars" id="blocked"></div></div>
   </section>
 
+  <section><h2>Before and after the FAQs</h2><p class="cap" id="faqCap"></p><div class="kpis" id="k-faq"></div>
+    <div class="grid2" style="margin-top:28px">
+      <div><h3 style="margin-bottom:12px">Most-opened questions</h3><div class="bars" id="faqTop"></div></div>
+      <div><h3 style="margin-bottom:12px">Bounce: opened the FAQs or not</h3><div class="bars" id="faqSplit"></div></div>
+    </div></section>
+
   <section><h2>Every day</h2><p class="cap">Form visits, unique visitors, starts and registrations, India time.</p><div class="chart"><canvas id="daily" role="img" aria-label="Daily visitors, form visitors, starts and registrations"></canvas></div></section>
 
   <section class="grid2">
@@ -140,6 +146,7 @@ const dur = (s) => s == null ? "—" : s < 3600 ? `${Math.floor(s / 60)}m ${s % 
 const ls = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
 const INK = "#1f5136", SAGE = "#8a9a6b", RUST = "#a4372b", MUTED = "#6d7c70", GRID = "#ddd8c8";
 let days = 7, view = "form", all = null, charts = {};
+const FAQ_LAUNCH = Date.parse("2026-10-19T08:48:00Z") / 1000;   // help bubble went live on the League page and form
 
 // Everything once per sign-in; ranges are cut here, so switching is instant.
 // ponytail: loads every event; ask Supabase for the range only once there are tens of thousands.
@@ -221,6 +228,7 @@ function render() {
   table(document.getElementById("sources"), s.sources);
   table(document.getElementById("devices"), s.devices);
   bars(document.getElementById("scroll"), s.scroll);
+  faqCompare(ev, rg);
   bars(document.getElementById("clicks"), fromObj(s.clicks).map((c) => ({ label: c.label.replace(/_/g, " "), n: c.n })));
   const who = [["Level", s.who.level], ["Gender", s.who.gender], ["Dates", s.who.availability], ["Age", s.who.age], ["Playing for", s.who.experience]];
   document.getElementById("who").innerHTML = who.map(([t, o]) => `<div><p class="eyebrow" style="margin-bottom:8px">${t}</p>${
@@ -242,6 +250,34 @@ function render() {
   line("hours", s.hours.map((h) => (h.hour % 12 || 12) + (h.hour < 12 ? "a" : "p")), [
     ds("Form visits", s.hours.map((h) => h.visits), INK, { borderRadius: 2 }), ds("Registrations", s.hours.map((h) => h.registered), RUST, { borderRadius: 2 })], { type: "bar" });
   document.getElementById("foot").textContent = `Updated ${new Date().toLocaleString("en-IN")}. ${fmt(ev.length)} events in all.`;
+}
+
+// Form bounce before vs after the help bubble, over all data (not the range buttons).
+function faqCompare(ev, rg) {
+  const before = computeStats(ev.filter((r) => r[0] < FAQ_LAUNCH), rg.filter((r) => r.at < FAQ_LAUNCH), new Date()).kpi;
+  const afterEv = ev.filter((r) => r[0] >= FAQ_LAUNCH);
+  const after = computeStats(afterEv, rg.filter((r) => r.at >= FAQ_LAUNCH), new Date()).kpi;
+  const opened = new Set(afterEv.filter((r) => r[4] === "click" && r[5] === "faq_open").map((r) => r[2]));
+  const withFaq = computeStats(afterEv.filter((r) => opened.has(r[2])), [], new Date()).kpi;
+  const without = computeStats(afterEv.filter((r) => !opened.has(r[2])), [], new Date()).kpi;
+  const d = after.formBounce - before.formBounce;
+  const since = new Date(FAQ_LAUNCH * 1000).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+  document.getElementById("faqCap").textContent = `The help bubble went live on ${since}. Compares all form visits before and after, whatever range is picked above.`;
+  const t = (l, v, h) => `<div class="kpi"><p class="l">${l}<button class="info" type="button" aria-label="What is ${l}?" aria-expanded="false">i</button></p><p class="v">${v}</p><p class="tip" hidden>${h}</p></div>`;
+  document.getElementById("k-faq").innerHTML = [
+    t("Bounce before", before.formVisits ? pc(before.formBounce) : "—", `Form visits that left without registering, before the FAQs. ${fmt(before.formVisits)} visits.`),
+    t("Bounce after", after.formVisits ? pc(after.formBounce) : "—", `Form visits that left without registering, since the FAQs. ${fmt(after.formVisits)} visits.`),
+    t("Change", before.formVisits && after.formVisits ? `${d > 0 ? "+" : d < 0 ? "−" : ""}${pc(Math.abs(d)).replace("%", "")} pts` : "—", "Lower is better. Small numbers of visits swing a lot, so give it a few days."),
+    t("Opened the FAQs", fmt(opened.size), "Visits (League page or form) that opened the help bubble since it went live."),
+    t("WhatsApp taps", fmt(afterEv.filter((r) => r[5] === "faq_whatsapp").length), "Taps on Ask on WhatsApp in the help bubble."),
+  ].join("");
+  const top = {};
+  afterEv.forEach((r) => { if (r[4] === "click" && String(r[5]).startsWith("faq: ")) top[r[5].slice(5)] = (top[r[5].slice(5)] || 0) + 1; });
+  bars(document.getElementById("faqTop"), fromObj(top));
+  bars(document.getElementById("faqSplit"), [
+    ...(withFaq.formVisits ? [{ label: "Opened the FAQs", n: withFaq.formVisits, extra: pc(withFaq.formBounce) + " bounce" }] : []),
+    ...(without.formVisits ? [{ label: "Didn't open them", n: without.formVisits, extra: pc(without.formBounce) + " bounce" }] : []),
+  ]);
 }
 
 async function show(pw) {
