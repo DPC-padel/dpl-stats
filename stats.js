@@ -142,3 +142,55 @@ function computeStats(rows, regs, now) {
     who: { level: mix("level"), gender: mix("gender"), availability: mix("availability"), experience: mix("experience"), age: ages },
   };
 }
+
+// ── Entries tab: who has registered, from the saved registrations. ──
+const MATCH_DAYS = [["Fri 20", "Fri 20 Nov"], ["Sat 21", "Sat 21 Nov"], ["Sun 22", "Sun 22 Nov"], ["Sat 28", "Sat 28 Nov"], ["Sun 29", "Sun 29 Nov"]];
+const LEVELS = ["Beginner", "Lower Intermediate", "Intermediate", "Advanced"];
+const GENDERS = ["Male", "Female", "Other"];
+
+// Which of the five match days someone can play, from any version of the form's answer.
+function canPlay(a) {
+  a = String(a || "");
+  if (/^(All days|Both weekends)/.test(a)) return MATCH_DAYS.map(() => true);
+  if (/^Only 20/.test(a)) return [true, true, true, false, false];
+  if (/^Only 28/.test(a)) return [false, false, false, true, true];
+  if (/^Can't play/.test(a)) return MATCH_DAYS.map(([k]) => !a.includes(k));
+  if (/^Neither/.test(a)) return MATCH_DAYS.map(() => false);
+  return null;   // blank or unknown answer
+}
+function ageBand(dob, now) {
+  const b = dob ? new Date(dob) : null;
+  const age = b && !isNaN(b) ? Math.floor((now - b) / 31557600000) : null;
+  return age == null ? "—" : age < 25 ? "Under 25" : age < 35 ? "25–34" : age < 45 ? "35–44" : "45+";
+}
+
+function computeEntries(regs, now) {
+  const nowS = now / 1000, day = (t) => new Date((t + IST) * 1000).toISOString().slice(0, 10), today = day(nowS);
+  const count = (f) => regs.filter(f).length;
+  const tally = (pick, order = []) => {
+    const o = {};
+    order.forEach((k) => (o[k] = 0));
+    regs.forEach((r) => { const k = pick(r) || "—"; o[k] = (o[k] || 0) + 1; });
+    return o;
+  };
+  // Category grid: level × gender.
+  const levels = [...LEVELS, ...new Set(regs.map((r) => r.level || "—").filter((l) => !LEVELS.includes(l)))];
+  const genders = [...GENDERS, ...new Set(regs.map((r) => r.gender || "—").filter((g) => !GENDERS.includes(g)))];
+  const grid = levels.map((l) => ({ level: l, cells: genders.map((g) => count((r) => (r.level || "—") === l && (r.gender || "—") === g)), total: count((r) => (r.level || "—") === l) }));
+  const plays = regs.map((r) => canPlay(r.availability));
+  const daily = {};
+  regs.forEach((r) => { if (r.at) daily[day(r.at)] = (daily[day(r.at)] || 0) + 1; });
+  return {
+    total: regs.length,
+    today: count((r) => r.at && day(r.at) === today),
+    week: count((r) => r.at && r.at >= nowS - 7 * 86400),
+    gender: tally((r) => r.gender, GENDERS),
+    allDays: plays.filter((p) => p && p.every(Boolean)).length,
+    someDays: plays.filter((p) => p && !p.every(Boolean)).length,
+    grid: { genders, rows: grid, totals: genders.map((g) => count((r) => (r.gender || "—") === g)) },
+    perDay: MATCH_DAYS.map(([, label], i) => ({ label, n: plays.filter((p) => p && p[i]).length })),
+    level: tally((r) => r.level, LEVELS), experience: tally((r) => r.experience), side: tally((r) => r.side),
+    tshirt: tally((r) => r.tshirt, ["S", "M", "L", "XL", "XXL"]), age: tally((r) => ageBand(r.dob, now), ["Under 25", "25–34", "35–44", "45+"]),
+    daily: Object.keys(daily).sort().map((k) => ({ day: k, n: daily[k] })),
+  };
+}

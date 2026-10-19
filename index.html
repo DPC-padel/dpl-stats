@@ -61,6 +61,16 @@ table.t{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:
 .tabs{display:inline-flex;gap:6px;margin-bottom:18px}
 .tabs button{min-height:34px;padding:0 12px;border-radius:var(--r);font-size:14px;box-shadow:inset 0 0 0 1px var(--line);color:var(--text-2)}
 .tabs button[aria-pressed=true]{background:var(--gold);color:#f8f4ea;box-shadow:none}
+.pages{margin:0 0 26px}
+.hero-entries{background:var(--surface);border:1px solid var(--line);padding:22px 24px;margin-bottom:10px}
+.hero-entries .big{font-family:var(--serif);font-weight:600;font-size:clamp(64px,9vw,96px);line-height:1;color:var(--gold);font-variant-numeric:lining-nums tabular-nums;margin:6px 0}
+.hero-entries .cap{margin-bottom:14px}
+.goal{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.goal-bar{flex:1;min-width:160px;height:10px;background:var(--bg)}
+.goal-fill{height:100%;width:0;background:var(--gold)}
+.goal .target{margin:0}
+table.t.cat td:last-child,table.t.cat th:last-child{font-weight:600}
+table.t.cat tr.sum td{font-weight:600;border-top:2px solid var(--line)}
 .target{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--text-2);margin-bottom:14px}
 .target input{width:90px;min-height:36px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);font:inherit;color:var(--text)}
 @media(max-width:599px){.bar-row.f{grid-template-columns:90px minmax(0,1fr) 72px 84px;font-size:13px}}
@@ -86,12 +96,35 @@ table.t{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:
 
 <main class="st" id="app" hidden>
   <div class="top">
-    <div><p class="eyebrow">Season One · registration form</p><h1>Analytics</h1></div>
+    <div><p class="eyebrow">Season One</p><h1>Delhi Padel League</h1></div>
     <div class="range" role="group" aria-label="Date range">
       <button data-days="1">Today</button><button data-days="7" aria-pressed="true">7 days</button><button data-days="30">30 days</button><button data-days="0">All</button>
       <button id="refresh" type="button" aria-label="Refresh data" title="Refresh data" style="box-shadow:inset 0 0 0 1px var(--line)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg> Refresh</button>
     </div>
   </div>
+  <div class="tabs pages" role="tablist" aria-label="Dashboards">
+    <button role="tab" data-pane="entries" aria-pressed="true" aria-selected="true">Entries</button><button role="tab" data-pane="form" aria-pressed="false" aria-selected="false">Form analytics</button>
+  </div>
+
+  <div id="pane-entries">
+    <div class="hero-entries"><p class="eyebrow">Entries</p><p class="big" id="e-total">—</p><p class="cap" id="e-sub"></p>
+      <div class="goal"><div class="goal-bar"><div class="goal-fill" id="e-goal"></div></div><label class="target">Target <input id="target" type="number" min="1" step="1" inputmode="numeric"></label></div>
+    </div>
+    <div class="kpis" id="k-entries"></div>
+
+    <section><h2>By category</h2><p class="cap">Entries by self-rated level and gender.</p><div id="e-grid"></div></section>
+
+    <section><h2>Availability by day</h2><p class="cap">How many entries can play each match day.</p><div class="bars" id="e-days"></div></section>
+
+    <section class="grid2">
+      <div><h2>New entries every day</h2><p class="cap">India time.</p><div class="chart"><canvas id="e-daily" role="img" aria-label="New entries per day"></canvas></div></div>
+      <div><h2>Toward the target</h2><p class="cap">All entries so far, over time.</p><div class="chart"><canvas id="cum" role="img" aria-label="Cumulative entries against the target"></canvas></div></div>
+    </section>
+
+    <section><h2>More about the entries</h2><p class="cap">T-shirt sizes are what to order for kit.</p><div class="who" id="e-more"></div></section>
+  </div>
+
+  <div id="pane-form" hidden>
   <p class="kgroup">Who opened the form</p><div class="kpis" id="k-traffic"></div>
   <p class="kgroup">Filling it in</p><div class="kpis" id="k-form"></div>
   <p class="kgroup">Behaviour</p><div class="kpis" id="k-behaviour"></div>
@@ -113,12 +146,7 @@ table.t{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:
 
   <section><h2>Every day</h2><p class="cap">Form visits, unique visitors, starts and registrations, India time.</p><div class="chart"><canvas id="daily" role="img" aria-label="Daily visitors, form visitors, starts and registrations"></canvas></div></section>
 
-  <section class="grid2">
-    <div><h2>Toward the target</h2><p class="cap">All registrations so far, over time.</p>
-      <label class="target">Target <input id="target" type="number" min="1" step="1" inputmode="numeric"></label>
-      <div class="chart"><canvas id="cum" role="img" aria-label="Cumulative registrations against the target"></canvas></div></div>
-    <div><h2>Best hours</h2><p class="cap">Form visits and registrations by hour, India time. Post when people show up.</p><div class="chart"><canvas id="hours" role="img" aria-label="Visits and registrations by hour of day"></canvas></div></div>
-  </section>
+  <section><h2>Best hours</h2><p class="cap">Form visits and registrations by hour, India time. Post when people show up.</p><div class="chart"><canvas id="hours" role="img" aria-label="Visits and registrations by hour of day"></canvas></div></section>
 
   <section><h2>Sources</h2><p class="cap">Where form visits come from. Tag shared links with ?utm_source=instagram (or whatsapp, etc.). Conversion is unique visitors to registered.</p><div id="sources"></div></section>
 
@@ -131,11 +159,12 @@ table.t{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:
       <div><h3 style="margin-bottom:12px">How far people scroll</h3><div class="bars" id="scroll"></div></div>
       <div><h3 style="margin-bottom:12px">Button clicks</h3><div class="bars" id="clicks"></div></div>
     </div></section>
+  </div>
   <p class="cap" id="foot" style="margin-top:24px"></p>
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="stats.js?v=5"></script>
+<script src="stats.js?v=6"></script>
 <script>
 const SB = { url: "https://zruqzybdpniofxbcwuat.supabase.co", key: "sb_publishable_O5kl7By_s23gMXNULck-yw_cksU-9Oy" };
 const PW_KEY = "dplStatsPw", TARGET_KEY = "dplTarget";
@@ -145,7 +174,7 @@ const pc = (n) => (n >= 10 || n === 0 ? Math.round(n) : n.toFixed(1)) + "%";
 const dur = (s) => s == null ? "—" : s < 3600 ? `${Math.floor(s / 60)}m ${s % 60}s` : s < 86400 ? `${(s / 3600).toFixed(1)}h` : `${(s / 86400).toFixed(1)} days`;
 const ls = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
 const INK = "#1f5136", SAGE = "#8a9a6b", RUST = "#a4372b", MUTED = "#6d7c70", GRID = "#ddd8c8";
-let days = 7, view = "form", all = null, charts = {};
+let days = 7, view = "form", pane = "entries", all = null, charts = {};
 const FAQ_LAUNCH = Date.parse("2026-10-19T08:48:00Z") / 1000;   // help bubble went live on the League page and form
 
 // Everything once per sign-in; ranges are cut here, so switching is instant.
@@ -245,11 +274,37 @@ function render() {
   const cum = computeStats([], rg, new Date()).cumulative, target = Number(ls.get(TARGET_KEY)) || 0;
   const cdays = [...new Set(cum.map((c) => c.day))];
   const totals = cdays.map((d) => cum.filter((c) => c.day <= d).length);
-  line("cum", cdays.map(dayLabel), [ds("Registrations", totals, INK, { fill: false }),
+  line("cum", cdays.map(dayLabel), [ds("Entries", totals, INK, { fill: false }),
     ...(target ? [ds("Target", cdays.map(() => target), RUST, { borderDash: [6, 4], pointRadius: 0 })] : [])]);
   line("hours", s.hours.map((h) => (h.hour % 12 || 12) + (h.hour < 12 ? "a" : "p")), [
     ds("Form visits", s.hours.map((h) => h.visits), INK, { borderRadius: 2 }), ds("Registrations", s.hours.map((h) => h.registered), RUST, { borderRadius: 2 })], { type: "bar" });
+  renderEntries(rg, target);
   document.getElementById("foot").textContent = `Updated ${new Date().toLocaleString("en-IN")}. ${fmt(ev.length)} events in all.`;
+}
+
+// Entries tab: always every registration, whatever range is picked.
+function renderEntries(rg, target) {
+  const e = computeEntries(rg, Date.now());
+  document.getElementById("e-total").textContent = fmt(e.total);
+  document.getElementById("e-sub").textContent = `${fmt(e.today)} today · ${fmt(e.week)} in the last 7 days` + (target ? ` · ${pc((100 * e.total) / target)} of the ${fmt(target)} target` : " · set a target to track progress");
+  document.getElementById("e-goal").style.width = target ? Math.min(100, (100 * e.total) / target) + "%" : "0";
+  const t = (l, v, h) => `<div class="kpi"><p class="l">${l}<button class="info" type="button" aria-label="What is ${l}?" aria-expanded="false">i</button></p><p class="v">${v}</p><p class="tip" hidden>${h}</p></div>`;
+  document.getElementById("k-entries").innerHTML = [
+    t("Men", fmt(e.gender.Male || 0), "Entries who picked Male."),
+    t("Women", fmt(e.gender.Female || 0), "Entries who picked Female."),
+    t("Other", fmt(e.gender.Other || 0), "Entries who picked Other."),
+    t("All five days", fmt(e.allDays), "Entries who can play every match day."),
+    t("Missing days", fmt(e.someDays), "Entries who can't play one or more match days."),
+  ].join("");
+  const g = e.grid;
+  document.getElementById("e-grid").innerHTML = e.total ? `<table class="t cat"><tr><th>Level</th>${g.genders.map((x) => `<th>${esc(x)}</th>`).join("")}<th>Total</th></tr>${
+    g.rows.map((r) => `<tr><td>${esc(r.level)}</td>${r.cells.map((c) => `<td>${c ? fmt(c) : "–"}</td>`).join("")}<td>${fmt(r.total)}</td></tr>`).join("")}<tr class="sum"><td>Total</td>${g.totals.map((c) => `<td>${fmt(c)}</td>`).join("")}<td>${fmt(e.total)}</td></tr></table>`
+    : `<p class="empty">Nothing yet.</p>`;
+  bars(document.getElementById("e-days"), e.perDay.map((d) => ({ ...d, pct: e.total ? (100 * d.n) / e.total : 0 })));
+  line("e-daily", e.daily.map((d) => new Date(d.day).toLocaleDateString("en-IN", { day: "numeric", month: "short" })), [ds("New entries", e.daily.map((d) => d.n), INK, { borderRadius: 2 })], { type: "bar" });
+  const more = [["T-shirt sizes", e.tshirt], ["Playing for", e.experience], ["Preferred side", e.side], ["Age", e.age]];
+  document.getElementById("e-more").innerHTML = more.map(([h, o]) => `<div><p class="eyebrow" style="margin-bottom:8px">${h}</p>${
+    Object.entries(o).filter(([, n]) => n).map(([k, n]) => `<p><span>${esc(k)}</span><span>${fmt(n)}</span></p>`).join("") || '<p class="empty">Nothing yet.</p>'}</div>`).join("");
 }
 
 // Form bounce before vs after the help bubble, over all data (not the range buttons).
@@ -287,6 +342,7 @@ async function show(pw) {
   document.getElementById("app").hidden = false;
   document.getElementById("out").hidden = false;
   document.getElementById("target").value = ls.get(TARGET_KEY) || "";
+  document.querySelectorAll(".range button[data-days]").forEach((x) => (x.hidden = pane !== "form"));
   render();
 }
 document.getElementById("pwForm").addEventListener("submit", async (e) => {
@@ -307,7 +363,14 @@ document.getElementById("refresh").addEventListener("click", async (e) => {
   catch (x) { if (x.auth) { sessionStorage.removeItem(PW_KEY); location.reload(); } else alert("Couldn't refresh. Check your connection and try again."); }
   finally { b.disabled = false; b.lastChild.textContent = " Refresh"; }
 });
-toggle(".tabs button", (b) => (view = b.dataset.view));
+toggle(".tabs:not(.pages) button", (b) => (view = b.dataset.view));
+toggle(".pages button", (b) => {
+  pane = b.dataset.pane;
+  document.querySelectorAll(".pages button").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
+  document.getElementById("pane-entries").hidden = pane !== "entries";
+  document.getElementById("pane-form").hidden = pane !== "form";
+  document.querySelectorAll(".range button[data-days]").forEach((x) => (x.hidden = pane !== "form"));
+});
 document.getElementById("target").addEventListener("change", (e) => { ls.set(TARGET_KEY, String(Math.max(0, Math.round(Number(e.target.value) || 0)))); render(); });
 document.addEventListener("click", (e) => {
   const btn = e.target.closest(".info");

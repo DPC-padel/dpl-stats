@@ -35,3 +35,15 @@ const empty = computeStats([ev(0, "z", "sz", "register", "view")], [], new Date(
 assert.deepEqual(empty.form.map((f) => f.lostPct), [null, 100, 0, 0, 0, 0, 0, 0]);
 assert.equal(empty.kpi.formBounce, 100);                       // opened the form, touched nothing
 console.log("ok: empty steps");
+// Entries tab.
+const { computeEntries } = new Function(readFileSync(new URL("stats.js", import.meta.url), "utf8") + "\nreturn { computeEntries };")();
+const R = (gender, level, availability, at = T) => ({ gender, level, availability, at, tshirt: "M", dob: "1996-05-01" });
+const e = computeEntries([
+  R("Male", "Beginner", "All days"), R("Male", "Advanced", "Can't play, Sat 21, Sun 29"),
+  R("Female", "Beginner", "Only 20–22 Nov"), R("Other", "Intermediate", "Both weekends", T - 30 * 86400),
+], new Date(T * 1000));
+assert.deepEqual([e.total, e.today, e.week, e.allDays, e.someDays], [4, 3, 3, 2, 2]);
+assert.deepEqual(e.grid.rows.find((r) => r.level === "Beginner").cells, [1, 1, 0]);
+assert.deepEqual(e.perDay.map((d) => d.n), [4, 3, 4, 3, 2]);
+assert.deepEqual(e.gender, { Male: 2, Female: 1, Other: 1 });
+console.log("ok: entries");
