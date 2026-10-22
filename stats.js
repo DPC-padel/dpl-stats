@@ -4,13 +4,13 @@
 
 const FIELD_LABELS = {
   availability: "Which dates", consent: "Confirm / consent boxes", name: "Full name", phone: "WhatsApp number",
-  email: "Email", gender: "Gender", dob: "Date of birth", instagram: "Instagram", experience: "How long playing",
+  email: "Email", gender: "Gender", dob: "Date of birth", area: "Where you live", instagram: "Instagram", experience: "How long playing",
   level: "Self rating", side: "Preferred side", tournament: "Tournament result", tshirt: "T-shirt size",
 };
 // Form order (league/register/index.html): a step counts sessions that answered any of its questions.
 const STEPS = [
   ["The dates", ["availability"]],
-  ["Your details", ["name", "phone", "email", "gender", "dob", "instagram"]],
+  ["Your details", ["name", "phone", "email", "gender", "dob", "area", "instagram"]],
   ["Your padel", ["experience", "level", "side", "tournament"]],
   ["Your kit", ["tshirt"]],
 ];
