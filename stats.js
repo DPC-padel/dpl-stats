@@ -182,6 +182,9 @@ function computeEntries(regs, now) {
   regs.forEach((r) => { if (r.at) daily[day(r.at)] = (daily[day(r.at)] || 0) + 1; });
   return {
     total: regs.length,
+    // Official DPC rating (played with DPC) and ranking (2+ matches); null until the stats query sends them.
+    rated: regs.some((r) => "rated" in r) ? count((r) => r.rated) : null,
+    ranked: regs.some((r) => "ranked" in r) ? count((r) => r.ranked) : null,
     today: count((r) => r.at && day(r.at) === today),
     week: count((r) => r.at && r.at >= nowS - 7 * 86400),
     gender: tally((r) => r.gender, GENDERS),

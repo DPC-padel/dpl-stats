@@ -164,7 +164,7 @@ table.t.cat tr.sum td{font-weight:600;border-top:2px solid var(--line)}
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="stats.js?v=6"></script>
+<script src="stats.js?v=7"></script>
 <script>
 const SB = { url: "https://zruqzybdpniofxbcwuat.supabase.co", key: "sb_publishable_O5kl7By_s23gMXNULck-yw_cksU-9Oy" };
 const PW_KEY = "dplStatsPw", TARGET_KEY = "dplTarget";
@@ -293,6 +293,8 @@ function renderEntries(rg, target) {
     t("Men", fmt(e.gender.Male || 0), "Entries who picked Male."),
     t("Women", fmt(e.gender.Female || 0), "Entries who picked Female."),
     t("Other", fmt(e.gender.Other || 0), "Entries who picked Other."),
+    t("Officially rated", e.rated == null ? "—" : `${fmt(e.rated)} · ${pc(e.total ? (100 * e.rated) / e.total : 0)}`, "Entries who have played with DPC, so they have a real DPC rating from their matches, not just the level they picked on the form."),
+    t("Ranked", e.ranked == null ? "—" : `${fmt(e.ranked)} · ${pc(e.total ? (100 * e.ranked) / e.total : 0)}`, "Entries with a place on a DPC leaderboard (2 or more matches)."),
     t("All five days", fmt(e.allDays), "Entries who can play every match day."),
     t("Missing days", fmt(e.someDays), "Entries who can't play one or more match days."),
   ].join("");

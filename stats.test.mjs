@@ -46,4 +46,7 @@ assert.deepEqual([e.total, e.today, e.week, e.allDays, e.someDays], [4, 3, 3, 2,
 assert.deepEqual(e.grid.rows.find((r) => r.level === "Beginner").cells, [1, 1, 0]);
 assert.deepEqual(e.perDay.map((d) => d.n), [4, 3, 4, 3, 2]);
 assert.deepEqual(e.gender, { Male: 2, Female: 1, Other: 1 });
+assert.equal(e.rated, null);                                   // older query: no rated field yet
+const e2 = computeEntries([{ ...R("Male", "Beginner", "All days"), rated: true, ranked: false }, { ...R("Female", "Advanced", "All days"), rated: true, ranked: true }, { ...R("Male", "Beginner", "All days"), rated: false, ranked: false }], new Date(T * 1000));
+assert.deepEqual([e2.rated, e2.ranked], [2, 1]);
 console.log("ok: entries");
